@@ -2,60 +2,73 @@ package models
 
 import "gorm.io/gorm"
 
-type base struct {
-	gorm.Model
-	Name        string
-	Description string
-}
-
-// type Image struct {}
-
-type Realm struct {
-	base
-	Image string
-}
-
-type Organization struct {
-	base
-	Type string
-}
-
-type Skill struct {
-	base
-	Type string
-}
-
-type Race struct {
-	base
-	Story           string
-	Characteristics string
-}
+// // db.Model(&models.UserInfo{}).AddForeignKey("u_id", "t_user(id)", "RESTRICT", "RESTRICT")
 
 type Character struct {
-	base
-	Image          string
-	RaceID         int
-	RealmID        int
-	OrganizationID int
-	Skills         []Skill
-	// AppearsIn
+	gorm.Model
+	Name           string
+	Description    string
+	RaceID         uint
+	Race           Race
+	RealmID        uint
+	Realm          Realm
+	OrganizationID uint
+	Organization   Organization
+	Skills         []Skill `gorm:"many2many:character_skills;"`
+	Tales          []Tale  `gorm:"many2many:character_tales;"`
+	// Image       string
 	// RelatedCharacters
 	// Category
 }
 
+type Tale struct {
+	gorm.Model
+	Title      string
+	Briefing   string
+	Content    string
+	ScenarioID uint
+	Scenario   Scenario
+	Image      string
+	Author     string
+	// NotableCharacters []Character `gorm:"many2many:character_tale"`
+	// RelatedTales
+}
+
 type Scenario struct {
-	base
+	gorm.Model
 	Image   string
-	RealmID int
+	RealmID uint
+	Realm   Realm
 	Type    string
 }
 
-type Tale struct {
-	Title      string
-	Briefing   string
-	Tale       string
-	ScenarioID int
-	Image      string
-	// NotableCharacters
-	// RelatedTales
+type Realm struct {
+	gorm.Model
+	Name        string
+	Description string
+	Image       string
+	// Scenarios []Scenario `gorm:"foreignKey:RealmID"` // 1:N
+}
+
+type Organization struct {
+	gorm.Model
+	Name        string
+	Description string
+	// Type string
+	// Characters []Character `gorm:"foreignKey:OrganizationID"` // 1:N
+}
+
+type Skill struct {
+	gorm.Model
+	Name        string
+	Description string
+	// Characters []Character `gorm:"many2many:character_skill"`
+}
+
+type Race struct {
+	gorm.Model
+	Name            string
+	Story           string
+	Characteristics string
+	// Characters      []Character `gorm:"foreignKey:RaceID"` // 1:N
 }
