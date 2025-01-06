@@ -22,13 +22,6 @@ func ConnectWithDB() {
 }
 
 func MigrateDb() {
-	// for _, model := range []interface{}{&models.Character{}, &models.Tale{}, &models.Scenario{}, &models.Realm{}, &models.Organization{}} {
-	// 	err = DB.AutoMigrate(model)
-	// 	if err != nil {
-	// 		log.Println("Erro ao migrar o modelo", model)
-	// 		continue
-	// 	}
-	// }
 	err = DB.AutoMigrate(&models.Character{}, &models.Skill{}, &models.Race{}, &models.Realm{}, &models.Organization{}, &models.Tale{}, &models.Scenario{})
 	if err != nil {
 		log.Panic("Erro na migração", err)
