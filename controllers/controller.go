@@ -18,14 +18,30 @@ func Greeting(c *gin.Context) {
 // Character
 func AllCharacters(c *gin.Context) {
 	var characters []models.Character
-	database.DB.Find(&characters)
+	if err := database.DB.
+		Preload("Race").
+		Preload("Organization").
+		Preload("Realm").
+		Preload("Skills").
+		Find(&characters).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, characters)
 }
 
 func GetCharacter(c *gin.Context) {
 	var character models.Character
 	id := c.Params.ByName("id")
-	database.DB.First(&character, id)
+	if err := database.DB.
+		Preload("Race").
+		Preload("Organization").
+		Preload("Realm").
+		Preload("Skills").
+		First(&character, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Character not found"})
+		return
+	}
 	c.JSON(http.StatusOK, character)
 }
 
@@ -39,6 +55,66 @@ func CreateCharacter(c *gin.Context) {
 
 	database.DB.Create(&character)
 	c.JSON(http.StatusOK, character)
+}
+
+func UpdateCharacter(c *gin.Context) {
+	var character models.Character
+	id := c.Params.ByName("id")
+	database.DB.First(&character, id)
+
+	if err := c.ShouldBindJSON(&character); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	database.DB.Model(&character).Updates(character)
+}
+
+func DeleteCharacter(c *gin.Context) {
+	var character models.Character
+	id := c.Params.ByName("id")
+
+	database.DB.Delete(&character, id)
+	c.JSON(http.StatusOK, gin.H{"message": "Character deleted successfully"})
+}
+
+func AddSkillToCharacter(c *gin.Context) {
+	var request struct {
+		CharacterID uint   `json:"character_id"`
+		SkillIDs    []uint `json:"skill_ids"`
+	}
+
+	// Faz o bind do JSON recebido
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Busca o Character pelo ID
+	var character models.Character
+	if err := database.DB.First(&character, request.CharacterID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Character not found"})
+		return
+	}
+
+	// Busca as Skills pelos IDs
+	var skills []models.Skill
+	if err := database.DB.Find(&skills, request.SkillIDs).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "One or more skills not found"})
+		return
+	}
+
+	// Adiciona as Skills ao Character
+	if err := database.DB.Model(&character).Association("Skills").Append(&skills); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add skills"})
+		return
+	}
+
+	// Retorna o Character atualizado
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "Skills added successfully",
+		"character": character,
+	})
 }
 
 // Race
@@ -180,4 +256,51 @@ func DeleteOrganization(c *gin.Context) {
 
 	database.DB.Delete(&organization, id)
 	c.JSON(http.StatusOK, gin.H{"message": "Organization deleted successfully"})
+}
+
+// Skill
+func AllSkills(c *gin.Context) {
+	var skills []models.Skill
+	database.DB.Find(&skills)
+	c.JSON(http.StatusOK, skills)
+}
+
+func GetSkill(c *gin.Context) {
+	var skill models.Skill
+	id := c.Params.ByName("id")
+	database.DB.First(&skill, id)
+	c.JSON(http.StatusOK, skill)
+}
+
+func CreateSkill(c *gin.Context) {
+	var skill models.Skill
+
+	if err := c.ShouldBindJSON(&skill); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	database.DB.Create(&skill)
+	c.JSON(http.StatusOK, skill)
+}
+
+func UpdateSkill(c *gin.Context) {
+	var skill models.Skill
+	id := c.Params.ByName("id")
+	database.DB.First(&skill, id)
+
+	if err := c.ShouldBindJSON(&skill); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	database.DB.Model(&skill).Updates(skill)
+}
+
+func DeleteSkill(c *gin.Context) {
+	var skill models.Skill
+	id := c.Params.ByName("id")
+
+	database.DB.Delete(&skill, id)
+	c.JSON(http.StatusOK, gin.H{"message": "Skill deleted successfully"})
 }
