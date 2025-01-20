@@ -15,6 +15,15 @@ func Greeting(c *gin.Context) {
 	})
 }
 
+func contains(ids []uint, id uint) bool {
+	for _, v := range ids {
+		if v == id {
+			return true
+		}
+	}
+	return false
+}
+
 // Character
 func AllCharacters(c *gin.Context) {
 	var characters []models.Character
@@ -60,14 +69,67 @@ func CreateCharacter(c *gin.Context) {
 func UpdateCharacter(c *gin.Context) {
 	var character models.Character
 	id := c.Params.ByName("id")
-	database.DB.First(&character, id)
 
-	if err := c.ShouldBindJSON(&character); err != nil {
+	if err := database.DB.Preload("Skills").First(&character, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Character not found"})
+		return
+	}
+
+	// Lê os dados enviados no body
+	var input models.Character
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	database.DB.Model(&character).Updates(character)
+	// Atualiza os campos do personagem
+	character.Name = input.Name
+	character.RaceID = input.RaceID
+	character.OrganizationID = input.OrganizationID
+	character.RealmID = input.RealmID
+
+	// Obter IDs das skills enviadas no payload
+	var inputSkillIDs []uint
+	for _, skill := range input.Skills {
+		inputSkillIDs = append(inputSkillIDs, skill.ID)
+	}
+
+	// Identificar quais skills remover
+	var skillsToRemove []models.Skill
+	for _, skill := range character.Skills {
+		if !contains(inputSkillIDs, skill.ID) {
+			skillsToRemove = append(skillsToRemove, skill)
+		}
+	}
+
+	// Atualizar skills: remover as antigas e adicionar as novas
+	var skillsToAdd []models.Skill
+	if len(input.Skills) > 0 {
+		for _, skill := range input.Skills {
+			var tempSkill models.Skill
+			if err := database.DB.First(&tempSkill, skill.ID).Error; err == nil {
+				skillsToAdd = append(skillsToAdd, tempSkill)
+			}
+		}
+	}
+
+	// Remove skills obsoletas
+	if len(skillsToRemove) > 0 {
+		database.DB.Model(&character).Association("Skills").Delete(skillsToRemove)
+	}
+
+	// Adiciona skills novas
+	if len(skillsToAdd) > 0 {
+		database.DB.Model(&character).Association("Skills").Replace(skillsToAdd)
+	}
+
+	// Salva as mudanças
+	if err := database.DB.Save(&character).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, character)
 }
 
 func DeleteCharacter(c *gin.Context) {
@@ -295,6 +357,7 @@ func UpdateSkill(c *gin.Context) {
 	}
 
 	database.DB.Model(&skill).Updates(skill)
+	c.JSON(http.StatusOK, skill)
 }
 
 func DeleteSkill(c *gin.Context) {
