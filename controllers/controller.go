@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"slices"
 	"toap-go-backend/database"
 	"toap-go-backend/models"
 
@@ -16,12 +17,7 @@ func Greeting(c *gin.Context) {
 }
 
 func contains(ids []uint, id uint) bool {
-	for _, v := range ids {
-		if v == id {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ids, id)
 }
 
 // Character

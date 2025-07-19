@@ -14,10 +14,10 @@ var (
 )
 
 func ConnectWithDB() {
-	connStr := "host=localhost user=root password=root dbname=root port=5432 sslmode=disable"
+	connStr := "host=db user=root password=root dbname=root port=5432 sslmode=disable"
 	DB, err = gorm.Open(postgres.Open(connStr))
 	if err != nil {
-		log.Panic("erro de conexão", err)
+		log.Panic("erro de conexão ", err)
 	}
 }
 
